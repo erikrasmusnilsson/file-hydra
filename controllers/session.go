@@ -14,6 +14,7 @@ import (
 	"github.com/go-redis/redis"
 
 	"../models"
+	"../repositories"
 	"../services"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
@@ -24,7 +25,7 @@ import (
 type SessionController struct {
 	// TODO: add redis session
 	basePath string
-	rc       *redis.Client
+	sr       repositories.SessionRepository
 }
 
 // NewSessionController configures a new session
@@ -32,11 +33,12 @@ type SessionController struct {
 // Returns a pointer to the configured controller.
 func NewSessionController(
 	basePath string,
-	rc *redis.Client,
+	sr repositories.SessionRepository,
 ) *SessionController {
+
 	return &SessionController{
 		basePath: basePath,
-		rc:       rc,
+		sr:       sr,
 	}
 }
 
@@ -81,7 +83,12 @@ func (sc SessionController) CreateSession(
 
 	sessjson, _ := json.Marshal(sess)
 
-	err := sc.rc.Set(req.Context(), sess.ID, sessjson, time.Minute*5).Err()
+	err := sc.sr.Set(
+		req.Context(),
+		sess.ID,
+		sess,
+		time.Minute*5,
+	)
 
 	if err != nil {
 		log.Println(err)
@@ -103,16 +110,13 @@ func (sc SessionController) GetSession(
 ) {
 	id := p.ByName("id")
 
-	sessjson, err := sc.rc.Get(req.Context(), id).Result()
+	sess, err := sc.sr.Get(req.Context(), id)
 
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
-	var sess models.Session
-	json.Unmarshal([]byte(sessjson), &sess)
 
 	if sess.ConnectedClients >= sess.ExpectedClients {
 		w.WriteHeader(http.StatusBadRequest)
@@ -123,13 +127,10 @@ func (sc SessionController) GetSession(
 	sid := sess.ConnectedClients
 	sess.ConnectedClients++
 
-	buf, _ := json.Marshal(sess)
-	sessjson = string(buf)
+	sc.sr.Set(req.Context(), id, sess, time.Minute*5)
+	sc.sr.Publish(req.Context(), id, sess)
 
-	sc.rc.Set(req.Context(), id, sessjson, time.Minute*5)
-	sc.rc.Publish(req.Context(), id, sessjson)
-
-	awaitAllClients(req.Context(), sess, sc.rc)
+	sc.awaitAllClients(req.Context(), sess)
 
 	f, err := os.Open(sc.createPath(sess.Filename))
 	defer f.Close()
@@ -152,13 +153,8 @@ func (sc SessionController) GetSession(
 	w.Write(fbuf)
 }
 
-func awaitAllClients(ctx context.Context, sess models.Session, c *redis.Client) {
-	sub := c.Subscribe(ctx, sess.ID)
-	_, err := sub.Receive(ctx)
-
-	if err != nil {
-		log.Println(err)
-	}
+func (sc SessionController) awaitAllClients(ctx context.Context, sess models.Session) {
+	sub := sc.sr.Subscribe(ctx, sess.ID)
 
 	diff := sess.ExpectedClients - sess.ConnectedClients
 	for i := 0; i < diff; i++ {
