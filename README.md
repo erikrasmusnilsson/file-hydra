@@ -20,5 +20,5 @@ The server will then check if the file exists and respond with an UUID correspon
     "connectedClients": 0
 }
 ```
-Each client then sends a GET request to /sessions/:id where it will wait until all clients are connected and finally respond with the clients corresponding part of the file.  
+Each client then sends a GET request to /sessions/:id where it will wait until all clients are connected and finally respond with the clients corresponding part of the file. The bytes of the file will be encoded as a base64 string as it travels through the wire. An additional HTTP header "X-Partition-Number" is added to the response. The value of this header field represents the partition that any given client has received. 
 ![Interaction diagram](/doc/out/concept.png)

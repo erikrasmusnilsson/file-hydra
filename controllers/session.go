@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,10 @@ import (
 	"../services"
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
+)
+
+const (
+	partitionHeader = "X-Partition-Header"
 )
 
 // SessionController contains receiver functions
@@ -150,7 +155,9 @@ func (sc SessionController) GetSession(
 	f.Seek(off, 0)
 	fbuf := make([]byte, end-off)
 	f.Read(fbuf)
-	w.Write(fbuf)
+	enc := base64.StdEncoding.EncodeToString(fbuf)
+	w.Header().Set(partitionHeader, fmt.Sprintf("%d", sid))
+	io.WriteString(w, enc)
 }
 
 func (sc SessionController) awaitAllClients(ctx context.Context, sess models.Session) {

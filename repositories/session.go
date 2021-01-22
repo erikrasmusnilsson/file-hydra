@@ -47,7 +47,8 @@ func (sr *sessionRepository) Set(
 	sess models.Session,
 	expires time.Duration,
 ) error {
-	return sr.Client.Set(ctx, key, sess, expires).Err()
+	b, _ := json.Marshal(sess)
+	return sr.Client.Set(ctx, key, string(b), expires).Err()
 }
 
 func (sr *sessionRepository) Publish(
