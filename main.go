@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redis"
 
 	"./controllers"
+	"./repositories"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -26,7 +27,8 @@ func main() {
 	}
 
 	mux := httprouter.New()
-	sc := controllers.NewSessionController("public", rc)
+	repo := repositories.NewSessionRepository(rc)
+	sc := controllers.NewSessionController("public", repo)
 
 	mux.POST("/sessions", sc.CreateSession)
 	mux.GET("/sessions/:id", sc.GetSession)
