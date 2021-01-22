@@ -117,6 +117,23 @@ func TestCreateSessionInvalidFilename(t *testing.T) {
 	}
 }
 
+func TestCreateSessionInvalidClients(t *testing.T) {
+	os.Mkdir(testDir, 0755)
+	defer os.Remove(testDir)
+	os.Create(testFilePath)
+	defer os.Remove(testFilePath)
+
+	mux, mr := createMux("test")
+	defer mr.Close()
+
+	b := fmt.Sprintf(`{"filename":"../main.go", "expectedClients": %d}`, 1)
+	res := request(b, mux)
+
+	if code := res.Code; code != http.StatusBadRequest {
+		t.Errorf("Expected status code 400, got %d", code)
+	}
+}
+
 func createMux(d string) (*httprouter.Router, *miniredis.Miniredis) {
 	mr, _ := miniredis.Run()
 	rc := redis.NewClient(&redis.Options{
