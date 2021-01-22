@@ -1,0 +1,19 @@
+name: DocumentationGeneration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  generateDocumentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install PlantUML
+        run: | 
+          apt-get install plantuml -y
+          plantuml doc/*.puml -o doc/out/
