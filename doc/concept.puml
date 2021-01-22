@@ -1,0 +1,27 @@
+@startuml
+box "file-hydra" #LightBlue
+    participant Client1 as c1
+    participant Client2 as c2
+    participant Server as s
+end box
+
+database Redis
+
+group Interaction Download
+    c1 -> s : 1. POST /sessions, body { filename: string }
+    activate s
+    s -> Redis : 2. SET <id> = <session>
+    s --> c1 : 3. 201 Created, body { id: uuid }
+    deactivate s
+    c1 -> s : 4. GET /sessions/:id 
+    activate s
+    s -> Redis : 5. SET <id> = <updated_session>
+    c2 -> s : 7. GET /sessions/:id
+    activate s
+    s -> Redis : 6. SET <id> = <updated_session>
+    s --> c1 : 8. 200 OK, body byte[]
+    deactivate s
+    s --> c2 : 9. 200 OK, body byte[]
+    deactivate s
+end group
+@enduml
